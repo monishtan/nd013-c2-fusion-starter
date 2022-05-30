@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+results/
+__pycache__
+tools/objdet_models/
+dataset/
