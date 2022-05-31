@@ -208,7 +208,8 @@ def detect_objects(input_bev_maps, model, configs):
             detections = decode(outputs['hm_cen'], outputs['cen_offset'], outputs['direction'], outputs['z_coor'], outputs['dim'], K=40)
             detections = detections.cpu().numpy().astype(np.float32)
             detections = post_processing(detections, configs)
-            detections = detections[0]
+            detections = detections[0][1]
+            detections[:, 7] = -detections[:, 7]
 
 
             #######
@@ -216,7 +217,7 @@ def detect_objects(input_bev_maps, model, configs):
 
             
 
-    ####### ID_S3_EX2 START #######     
+    ####### ID_S3_EX2 START #######
     #######
     # Extract 3d bounding boxes from model response
     print("student task ID_S3_EX2")
@@ -230,7 +231,7 @@ def detect_objects(input_bev_maps, model, configs):
         xy_factor = (configs.lim_x[1] - configs.lim_x[0])/configs.bev_height
 
         ## step 2 : loop over all detections
-        for det in detections[1]: # Only considering vehicles
+        for det in detections: # Only considering vehicles
             _, x, y, z, h, w, l, yaw = det
 
             ## step 3 : perform the conversion using the limits for x, y and z set in the configs structure
@@ -239,13 +240,13 @@ def detect_objects(input_bev_maps, model, configs):
             det[2] = (x - configs.bev_width/2) * xy_factor
             det[5] = w * xy_factor
             det[6] = l * xy_factor
-            det[7] = -yaw
+            det[7] = yaw
 
             ## step 4 : append the current object to the 'objects' array
             objects.append(det)
-        
+
     #######
-    ####### ID_S3_EX2 START #######   
+    ####### ID_S3_EX2 START #######
     
     return objects    
 
