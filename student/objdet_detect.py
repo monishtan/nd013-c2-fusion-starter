@@ -209,8 +209,6 @@ def detect_objects(input_bev_maps, model, configs):
             detections = detections.cpu().numpy().astype(np.float32)
             detections = post_processing(detections, configs)
             detections = detections[0][1]
-            detections[:, 7] = -detections[:, 7]
-
 
             #######
             ####### ID_S3_EX1-5 END #######     
@@ -240,7 +238,7 @@ def detect_objects(input_bev_maps, model, configs):
             det[2] = (x - configs.bev_width/2) * xy_factor
             det[5] = w * xy_factor
             det[6] = l * xy_factor
-            det[7] = yaw
+            det[7] = -yaw
 
             ## step 4 : append the current object to the 'objects' array
             objects.append(det)

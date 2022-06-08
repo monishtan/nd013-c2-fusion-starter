@@ -13,7 +13,8 @@
 # general package imports
 import numpy as np
 import matplotlib
-matplotlib.use('wxagg') # change backend so that figure maximizing works on Mac as well     
+# matplotlib.use('wxagg') # change backend so that figure maximizing works on Mac as well   # Changed Monish
+
 import matplotlib.pyplot as plt
 
 import torch
@@ -49,17 +50,33 @@ def measure_detection_performance(detections, labels, labels_valid, min_iou=0.5)
             print("student task ID_S4_EX1 ")
 
             ## step 1 : extract the four corners of the current label bounding-box
+            label_corners = tools.compute_box_corners(label.box.center_x, label.box.center_y, label.box.width, label.box.length, label.box.heading)
             
             ## step 2 : loop over all detected objects
+            for det in detections:
 
                 ## step 3 : extract the four corners of the current detection
+                _, x, y, z, h, w, l, yaw = det
+                det_corners = tools.compute_box_corners(x, y, w, l, yaw)
                 
                 ## step 4 : computer the center distance between label and detection bounding-box in x, y, and z
+                dist_x = float(abs(label.box.center_x - x))
+                dist_y = float(abs(label.box.center_y - y))
+                dist_z = float(abs(label.box.center_z - z))
                 
                 ## step 5 : compute the intersection over union (IOU) between label and detection bounding-box
-                
+                label_poly = Polygon(label_corners)
+                det_poly = Polygon(det_corners)
+                intersection = label_poly.intersection(det_poly).area
+                union = label_poly.union(det_poly).area
+                iou = intersection/union
+
+
                 ## step 6 : if IOU exceeds min_iou threshold, store [iou,dist_x, dist_y, dist_z] in matches_lab_det and increase the TP count
-                
+                if iou > min_iou:
+                    matches_lab_det.append([iou, dist_x, dist_y, dist_z])
+                    true_positives += 1
+
             #######
             ####### ID_S4_EX1 END #######     
             
@@ -77,13 +94,15 @@ def measure_detection_performance(detections, labels, labels_valid, min_iou=0.5)
     # compute positives and negatives for precision/recall
     
     ## step 1 : compute the total number of positives present in the scene
-    all_positives = 0
+    all_positives = len(detections)
 
     ## step 2 : compute the number of false negatives
-    false_negatives = 0
+
+    num_valid_labels = len(labels_valid[labels_valid == True])
+    false_negatives = num_valid_labels - true_positives
 
     ## step 3 : compute the number of false positives
-    false_positives = 0
+    false_positives = all_positives - true_positives
     
     #######
     ####### ID_S4_EX2 END #######     
@@ -111,16 +130,22 @@ def compute_performance_stats(det_performance_all):
     print('student task ID_S4_EX3')
 
     ## step 1 : extract the total number of positives, true positives, false negatives and false positives
-    
+    pos_negs_array = np.asarray(pos_negs)
+    total_positives = sum(pos_negs_array[:, 0])
+    true_positives = sum(pos_negs_array[:, 1])
+    false_negatives = sum(pos_negs_array[:, 2])
+    false_positives = sum(pos_negs_array[:, 3])
+
     ## step 2 : compute precision
-    precision = 0.0
+    precision = true_positives / (true_positives + false_positives)
 
     ## step 3 : compute recall 
-    recall = 0.0
+    recall = true_positives / (true_positives + false_negatives)
 
     #######    
     ####### ID_S4_EX3 END #######     
-    print('precision = ' + str(precision) + ", recall = " + str(recall))   
+    print('precision = ' + str(precision) + ", recall = " + str(recall))
+
 
     # serialize intersection-over-union and deviations in x,y,z
     ious_all = [element for tupl in ious for element in tupl]
@@ -149,6 +174,7 @@ def compute_performance_stats(det_performance_all):
     mean__devz = np.mean(devs_z_all)
     #std_dev_x = np.std(devs_x)
 
+
     # plot results
     data = [precision, recall, ious_all, devs_x_all, devs_y_all, devs_z_all]
     titles = ['detection precision', 'detection recall', 'intersection over union', 'position errors in X', 'position errors in Y', 'position error in Z']
@@ -165,8 +191,8 @@ def compute_performance_stats(det_performance_all):
         ax.hist(data[idx], num_bins)
         ax.set_title(titles[idx])
         if textboxes[idx]:
-            ax.text(0.05, 0.95, textboxes[idx], transform=ax.transAxes, fontsize=10,
-                    verticalalignment='top', bbox=props)
+            ax.text(0.05, 0.95, textboxes[idx], transform=ax.transAxes, fontsize=10, verticalalignment='top', bbox=props)
     plt.tight_layout()
     plt.show()
+
 
