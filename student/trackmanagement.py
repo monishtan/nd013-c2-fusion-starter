@@ -35,6 +35,7 @@ class Track:
         # - initialize track state and track score with appropriate values
         ############
 
+        '''
         self.x = np.matrix([[49.53980697],
                         [ 3.41006279],
                         [ 0.91790581],
@@ -49,6 +50,27 @@ class Track:
                         [0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 0.0e+00, 2.5e+01]])
         self.state = 'confirmed'
         self.score = 0
+        '''
+
+        z_homo = np.ones((4, 1))
+        z_homo[0:3] = meas.z
+        x_homo = meas.sensor.sens_to_veh * z_homo
+        x_pos = x_homo[0:3]
+
+        x = np.zeros((params.dim_state, 1))
+        x[0:3] = x_pos
+
+        P = np.zeros((params.dim_state, params.dim_state))
+        P_pos = M_rot * meas.R * M_rot.transpose()
+        P[0:3, 0:3] = P_pos
+        P[3, 3] = params.sigma_p44
+        P[4, 4] = params.sigma_p55
+        P[5, 5] = params.sigma_p66
+
+        self.x = x
+        self.P = P
+        self.state = 'initialized'
+        self.score = 1./params.window
         
         ############
         # END student code
@@ -59,7 +81,7 @@ class Track:
         self.width = meas.width
         self.length = meas.length
         self.height = meas.height
-        self.yaw =  np.arccos(M_rot[0,0]*np.cos(meas.yaw) + M_rot[0,1]*np.sin(meas.yaw)) # transform rotation from sensor to vehicle coordinates
+        self.yaw = np.arccos(M_rot[0,0]*np.cos(meas.yaw) + M_rot[0,1]*np.sin(meas.yaw)) # transform rotation from sensor to vehicle coordinates
         self.t = meas.t
 
     def set_x(self, x):
@@ -107,19 +129,30 @@ class Trackmanagement:
             if meas_list: # if not empty
                 if meas_list[0].sensor.in_fov(track.x):
                     # your code goes here
-                    pass 
+                    track.score -= 1./params.window
 
-        # delete old tracks   
+        # delete old tracks
+        for tr in self.track_list:
+            if tr.state == 'confirmed':
+                if tr.score < params.delete_threshold:
+                    self.delete_track(tr)
+            else:
+                if tr.score < 0.05:
+                    self.delete_track(tr)
+
+            if tr.P[0, 0] > params.max_P or tr.P[1, 1] > params.max_P:
+                self.delete_track(tr)
+
 
         ############
         # END student code
         ############ 
             
         # initialize new track with unassigned measurement
-        for j in unassigned_meas: 
+        for j in unassigned_meas:
             if meas_list[j].sensor.name == 'lidar': # only initialize with lidar measurements
                 self.init_track(meas_list[j])
-            
+
     def addTrackToList(self, track):
         self.track_list.append(track)
         self.N += 1
@@ -140,7 +173,11 @@ class Trackmanagement:
         # - set track state to 'tentative' or 'confirmed'
         ############
 
-        pass
+        track.score = min(1, track.score + 1./params.window)
+        if track.score > params.confirmed_threshold:
+            track.state = 'confirmed'
+        else:
+            track.state = 'tentative'
         
         ############
         # END student code
