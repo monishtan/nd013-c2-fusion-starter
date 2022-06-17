@@ -63,9 +63,9 @@ class Track:
         P = np.zeros((params.dim_state, params.dim_state))
         P_pos = M_rot * meas.R * M_rot.transpose()
         P[0:3, 0:3] = P_pos
-        P[3, 3] = params.sigma_p44
-        P[4, 4] = params.sigma_p55
-        P[5, 5] = params.sigma_p66
+        P[3, 3] = params.sigma_p44 ** 2
+        P[4, 4] = params.sigma_p55 ** 2
+        P[5, 5] = params.sigma_p66 ** 2
 
         self.x = x
         self.P = P
@@ -133,15 +133,12 @@ class Trackmanagement:
 
         # delete old tracks
         for tr in self.track_list:
-            if tr.state == 'confirmed':
-                if tr.score < params.delete_threshold:
+            if tr.state == 'confirmed' and tr.score < params.delete_threshold:
                     self.delete_track(tr)
             else:
-                if tr.score < 0.05:
+                if tr.score < 0.05 or tr.P[0, 0] > params.max_P or tr.P[1, 1] > params.max_P:
                     self.delete_track(tr)
 
-            if tr.P[0, 0] > params.max_P or tr.P[1, 1] > params.max_P:
-                self.delete_track(tr)
 
 
         ############
